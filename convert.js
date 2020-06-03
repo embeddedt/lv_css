@@ -10,6 +10,35 @@ const blendModes = {
     "subtractive": "LV_BLEND_MODE_SUBTRACTIVE"
 };
 
+const alignments = {
+    "center": "LV_ALIGN_CENTER",
+    "top-left": "LV_ALIGN_IN_TOP_LEFT",
+    "top-center": "LV_ALIGN_IN_TOP_MID",
+    "top-right": "LV_ALIGN_IN_TOP_RIGHT",
+    "bottom-left": "LV_ALIGN_IN_BOTTOM_LEFT",
+    "bottom-center": "LV_ALIGN_IN_BOTTOM_MID",
+    "bottom-right": "LV_ALIGN_IN_BOTTOM_RIGHT",
+    "left-center": "LV_ALIGN_IN_LEFT_MID",
+    "right-center": "LV_ALIGN_IN_RIGHT_MID",
+    "out-top-left": "LV_ALIGN_OUT_TOP_LEFT",
+    "out-top-center": "LV_ALIGN_OUT_TOP_MID",
+    "out-top-right": "LV_ALIGN_OUT_TOP_RIGHT",
+    "out-bottom-left": "LV_ALIGN_OUT_BOTTOM_LEFT",
+    "out-bottom-center": "LV_ALIGN_OUT_BOTTOM_MID",
+    "out-bottom-right": "LV_ALIGN_OUT_BOTTOM_RIGHT",
+    "out-left-top": "LV_ALIGN_OUT_LEFT_TOP",
+    "out-left-center": "LV_ALIGN_OUT_LEFT_MID",
+    "out-left-bottom": "LV_ALIGN_OUT_LEFT_BOTTOM",
+    "out-right-top": "LV_ALIGN_OUT_RIGHT_TOP",
+    "out-right-center": "LV_ALIGN_OUT_RIGHT_MID",
+    "out-right-bottom": "LV_ALIGN_OUT_RIGHT_BOTTOM"
+};
+const textDecors = {
+    "none": "LV_TEXT_DECOR_NONE",
+    "underline": "LV_TEXT_DECOR_UNDERLINE",
+    "strikethrough": "LV_TEXT_DECOR_STRIKETHROUGH"
+};
+
 let convertable_properties = {
     "background-color": {
         lv_name: "BG_COLOR",
@@ -97,13 +126,197 @@ let convertable_properties = {
         }
     },
     "border-blend-mode": {
-        lv_name: "BG_BLEND_MODE",
+        lv_name: "BORDER_BLEND_MODE",
         type: "enum_single",
         enumValues: blendModes
     },
     "border-color": {
         type: "color",
         alpha: "border_opa"
+    },
+    "outline-width": {
+        type: "int"
+    },
+    "outline-blend-mode": {
+        lv_name: "OUTLINE_BLEND_MODE",
+        type: "enum_single",
+        enumValues: blendModes
+    },
+    "outline-color": {
+        type: "color",
+        alpha: "outline_opa"
+    },
+    "outline-padding": {
+        type: "int",
+        lv_name: "OUTLINE_PAD"
+    },
+    "shadow-color": {
+        type: "color",
+        alpha: "shadow_opa"
+    },
+    "shadow-width": {
+        type: "int"
+    },
+    "shadow-spread": {
+        type: "int"
+    },
+    "shadow-blend-mode": {
+        lv_name: "SHADOW_BLEND_MODE",
+        type: "enum_single",
+        enumValues: blendModes
+    },
+    "shadow-offset-x": {
+        type: "int",
+        lv_name: "SHADOW_OFS_X"
+    },
+    "shadow-offset-y": {
+        type: "int",
+        lv_name: "SHADOW_OFS_Y"
+    },
+    "pattern-image": {
+        type: "address"
+    },
+    "pattern-color": {
+        type: "color",
+        lv_name: "PATTERN_RECOLOR",
+        alpha: "pattern_recolor_opa"
+    },
+    "pattern-repeat": {
+        type: "bool"
+    },
+    "pattern-blend-mode": {
+        lv_name: "PATTERN_BLEND_MODE",
+        type: "enum_single",
+        enumValues: blendModes
+    },
+    "value-str": {
+        type: "string",
+    },
+    "value-color": {
+        type: "color",
+        lv_name: "VALUE_COLOR",
+        alpha: "value_opa"
+    },
+    "value-font": {
+        type: "address"
+    },
+    "value-align": {
+        type: "enum_single",
+        enumValues: alignments
+    },
+    "value-offset-x": {
+        type: "int",
+        lv_name: "VALUE_OFS_X"
+    },
+    "value-offset-y": {
+        type: "int",
+        lv_name: "VALUE_OFS_Y"
+    },
+    "value-blend-mode": {
+        lv_name: "VALUE_BLEND_MODE",
+        type: "enum_single",
+        enumValues: blendModes
+    },
+    "value-letter-space": {
+        type: "int"
+    },
+    "value-line-space": {
+        type: "int"
+    },
+    "text-color": {
+        type: "color",
+        lv_name: "VALUE_COLOR",
+        alpha: "value_opa"
+    },
+    "text-font": {
+        type: "address"
+    },
+    "text-blend-mode": {
+        lv_name: "VALUE_BLEND_MODE",
+        type: "enum_single",
+        enumValues: blendModes
+    },
+    "text-letter-space": {
+        type: "int"
+    },
+    "text-line-space": {
+        type: "int"
+    },
+    "text-decor": {
+        type: "enum_list",
+        enumValues: textDecors
+    },
+    "line-width": {
+        type: "int"
+    },
+    "line-blend-mode": {
+        lv_name: "LINE_BLEND_MODE",
+        type: "enum_single",
+        enumValues: blendModes
+    },
+    "line-color": {
+        type: "color",
+        alpha: "line_opa"
+    },
+    "line-dash-width": {
+        type: "int"
+    },
+    "line-dash-gap": {
+        type: "int"
+    },
+    "line-rounded": {
+        type: "bool"
+    },
+    "image-color": {
+        type: "color",
+        alpha: "image_recolor_opa",
+        lv_name: "IMAGE_RECOLOR"
+    },
+    "image-blend-mode": {
+        lv_name: "IMAGE_BLEND_MODE",
+        type: "enum_single",
+        enumValues: blendModes
+    },
+    "image-opacity": {
+        type: "percent"
+    },
+    "scale-grad-color": {
+        type: "color"
+    },
+    "scale-end-color": {
+        type: "color"
+    },
+    "scale-border-width": {
+        type: "int"
+    },
+    "scale-end-border-width": {
+        type: "int"
+    },
+    "scale-end-line-width": {
+        type: "int"
+    },
+    "font-family": {
+        alias: "text-font"
+    },
+    "border": {
+        type: "group",
+        groupElements: [
+            "border-width",
+            "border-color"
+        ]
+    }
+}
+
+function getRealPropertyName(propertyName) {
+    while(true) {
+        if(convertable_properties[propertyName] == undefined) {
+            throw new Error("Unknown LVGL CSS property: " + propertyName);
+        }
+        if(convertable_properties[propertyName].alias != undefined) {
+            propertyName = convertable_properties[propertyName].alias;
+            continue;
+        }
+        return propertyName;
     }
 }
 
@@ -174,14 +387,49 @@ function get_lv_c_value(propertyName, value, className, state) {
             finalValue += `|${convertable_properties[propertyName].enumValues[value]}`;
         }
         return finalValue.substr(1);
+    } else if(valueType == "address") {
+        return "&" + value;
     } else
         throw new Error("Unable to handle value type '" + valueType + "'");
+}
+function processProperty(propertyName, realValue, classObj, className, state) {
+    propertyName = getRealPropertyName(propertyName);
+    if(convertable_properties[propertyName].type == "group") {
+        /* Groups must be broken down into individual properties */
+        const groupStack = Array.from(convertable_properties[propertyName].groupElements).reverse();
+        const values = realValue.split(" ").reverse();
+        while(groupStack.length > 0) {
+            var value = values.pop();
+            do {
+                try {
+                    var pn = groupStack.pop();
+                    console.log(pn, value);
+                    processProperty(pn, value, classObj, className, state);
+                    break;
+                } catch(e) {
+                    console.error(e);
+                }
+            } while(groupStack.length > 0);
+        }
+        return;
+    }
+
+    const lv_name = getLvName(propertyName);
+    const valueObj = classObj[convertable_properties[propertyName]] || {};
+    classObj[lv_name] = valueObj;
+    try {
+        classObj[lv_name][state] = get_lv_c_value(propertyName, realValue, className, state);
+    } catch(e) {
+        console.error(`Error while parsing property '${propertyName}': ` + e);
+        throw new Error();
+    }
 }
 /**
  * Converts a style sheet to a set of LittlevGL style rules.
  * @param {CSSOM.CSSStyleSheet} csso stylesheet to convert
  */
 function convert(csso) {
+    console.log(csso);
     for(const rule of csso.cssRules) {
         if(rule instanceof cssom.CSSStyleRule) {
             var parsedObj = cssSelectorParser.parse(rule.selectorText);
@@ -199,19 +447,7 @@ function convert(csso) {
                 const classObj = classes[className] || {};
                 classes[className] = classObj;
                 for(var i = 0; i < rule.style.length; i++) {
-                    var propertyName = rule.style[i];
-                    if(convertable_properties[propertyName] == undefined) {
-                        throw new Error("Unknown LVGL CSS property: " + propertyName);
-                    }
-                    const lv_name = getLvName(propertyName);
-                    const valueObj = classObj[convertable_properties[propertyName]] || {};
-                    classObj[lv_name] = valueObj;
-                    try {
-                        classObj[lv_name][state] = get_lv_c_value(propertyName, rule.style[propertyName], className, state);
-                    } catch(e) {
-                        console.error(`Error while parsing property '${propertyName}': ` + e);
-                        throw new Error();
-                    }
+                    processProperty(rule.style[i], rule.style[rule.style[i]], classObj, className, state);
                 }
             }
             
@@ -226,6 +462,7 @@ function convert(csso) {
 function finalize() {
     var file = "";
     file += "/*\n * Autogenerated file; do not edit.\n */\n\n";
+    file += "#include <lvgl/lvgl.h>\n\n";
     Object.keys(classes).forEach(cls => {
         file += `lv_style_t lv_style_${cls};\n`;
     });
@@ -242,7 +479,6 @@ function finalize() {
         });
     }
     file += "}\n";
-    console.log(file);
     return file;
 }
 module.exports = { convert: convert, finalize: finalize };
