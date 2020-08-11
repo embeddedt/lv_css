@@ -1,4 +1,5 @@
 const cssom = require('cssom');
+const fs = require('fs');
 const parseCSSColor = require('./css-color-parser').parseCSSColor;
 var CssSelectorParser = require('css-selector-parser').CssSelectorParser, cssSelectorParser = new CssSelectorParser();
 
@@ -455,7 +456,7 @@ function processProperty(propertyName, realValue, type, name, states, part, lang
  * Converts a style sheet to a set of LittlevGL style rules.
  * @param {String} css_string CSS stylesheet to convert
  */
-function convert(css_string, lang) {
+function convert(watcher, css_string, lang) {
     const csso = cssom.parse(css_string);
     for(const rule of csso.cssRules) {
         if(rule instanceof cssom.CSSStyleRule) {
@@ -498,6 +499,11 @@ function convert(css_string, lang) {
                 }
             }
             
+        } else if(rule instanceof cssom.CSSImportRule) {
+            fs.accessSync(rule.href, fs.constants.R_OK);
+            if(watcher != null)
+                watcher.add(rule.href);
+            convert(watcher, fs.readFileSync(rule.href).toString(), lang);
         }
     }
 }

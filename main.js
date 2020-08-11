@@ -28,22 +28,24 @@ const convert = require('./convert');
 
 var file = argv._[0];
 
-const doConvert = () => {
+const doConvert = (watcher) => {
     console.log("Converting...");
-    convert.convert(fs.readFileSync(file).toString(), argv.lang);
+    convert.convert(watcher, fs.readFileSync(file).toString(), argv.lang);
     fs.writeFileSync(argv.outfile, convert.finalize(argv.lang));
     console.log("Finished converting.");
 };
 if(argv.watch) {
-    doConvert();
     const chokidar = require('chokidar');
     const watcher = chokidar.watch(file, {
         ignored: /(^|[\/\\])\../, // ignore dotfiles
         persistent: true
     });
+    doConvert(watcher);
     watcher.on('ready', () => console.log('Ready for changes'));
     watcher.on('change', () => {
-        doConvert();
+        watcher.unwatch('*');
+        watcher.add(file);
+        doConvert(watcher);
     });
 } else {
     try {
