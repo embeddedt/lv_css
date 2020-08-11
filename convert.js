@@ -3,6 +3,7 @@ const parseCSSColor = require('./css-color-parser').parseCSSColor;
 var CssSelectorParser = require('css-selector-parser').CssSelectorParser, cssSelectorParser = new CssSelectorParser();
 
 let classes = {};
+let objectTypeStyles = {};
 
 const blendModes = {
     "normal": "LV_BLEND_MODE_NORMAL",
@@ -225,14 +226,14 @@ let convertable_properties = {
     },
     "text-color": {
         type: "color",
-        lv_name: "VALUE_COLOR",
-        alpha: "value_opa"
+        lv_name: "TEXT_COLOR",
+        alpha: "text_opa"
     },
     "text-font": {
         type: "address"
     },
     "text-blend-mode": {
-        lv_name: "VALUE_BLEND_MODE",
+        lv_name: "TEXT_BLEND_MODE",
         type: "enum_single",
         enumValues: blendModes
     },
@@ -336,19 +337,32 @@ function validateState(state) {
         "PRESSED",
         "DISABLED"
     ];
-    if(!validStates.includes(state.toUpperCase()))
-        throw new Error("Unknown state");
+    return validStates.includes(state.toUpperCase());
 }
 
-function get_lv_c_value(propertyName, value, className, state) {
+function micropythonState(state) {
+    return "lv." + state.substr(3).toUpperCase().replace(/_/g, '.');
+}
+
+function get_lv_c_value(propertyName, value, type, className, state, lang) {
     if(typeof convertable_properties[propertyName] == 'undefined')
         throw new Error("Unknown property");
     var valueType = convertable_properties[propertyName].type;
     if(valueType == "color") {
         let rgba = parseCSSColor(value);
-        var color = `LV_COLOR_MAKE(${rgba[0]}, ${rgba[1]}, ${rgba[2]})`;
+        let color_make;
+        if(lang == "c")
+            color_make = "LV_COLOR_MAKE";
+        else if(lang == "micropython")
+            color_make = "lv.color_make";
+        else
+            throw new Error("Unknown language: " + lang);
+        var color = `${color_make}(${rgba[0]}, ${rgba[1]}, ${rgba[2]})`;
         if(typeof convertable_properties[propertyName].alpha != 'undefined') {
-            color += `); lv_style_set_${convertable_properties[propertyName].alpha}(&lv_style_${className}, LV_STATE_${state.toUpperCase()}, ${Math.round(rgba[3] * 255)}`;
+            if(lang == "c")
+                color += `); lv_style_set_${convertable_properties[propertyName].alpha}(&lv_style_${type == "tag" ? "css_wid_" : ""}${className}, ${state.toUpperCase()}, ${Math.round(rgba[3] * 255)}`;
+            else if(lang == "micropython")
+                color += `)\nstyle_${type == "tag" ? "css_wid_" : ""}${className}.set_${convertable_properties[propertyName].alpha}(${micropythonState(state)}, ${Math.round(rgba[3] * 255)}`;
         }
         return color;
     } else if(valueType == "number" || valueType == "int") {
@@ -392,7 +406,20 @@ function get_lv_c_value(propertyName, value, className, state) {
     } else
         throw new Error("Unable to handle value type '" + valueType + "'");
 }
-function processProperty(propertyName, realValue, classObj, className, state) {
+function flattenStates(states) {
+    return states.map(state => `LV_STATE_${state.toUpperCase()}`).join(" | ");
+}
+function processProperty(propertyName, realValue, type, name, states, part, lang) {
+    let styleObj = null;
+    if(type == "class") {
+        styleObj = classes[name] || {};
+        classes[name] = styleObj;
+    } else if(type == "tag") {
+        name = name + "_part_" + part;
+        styleObj = objectTypeStyles[name] || {};
+        objectTypeStyles[name] = styleObj;
+    } else
+        throw new Error("Unexpected selector type");
     propertyName = getRealPropertyName(propertyName);
     if(convertable_properties[propertyName].type == "group") {
         /* Groups must be broken down into individual properties */
@@ -403,8 +430,7 @@ function processProperty(propertyName, realValue, classObj, className, state) {
             do {
                 try {
                     var pn = groupStack.pop();
-                    console.log(pn, value);
-                    processProperty(pn, value, classObj, className, state);
+                    processProperty(pn, value, type, name, states, part, lang);
                     break;
                 } catch(e) {
                     console.error(e);
@@ -415,10 +441,11 @@ function processProperty(propertyName, realValue, classObj, className, state) {
     }
 
     const lv_name = getLvName(propertyName);
-    const valueObj = classObj[convertable_properties[propertyName]] || {};
-    classObj[lv_name] = valueObj;
+    const valueObj = styleObj[convertable_properties[propertyName]] || {};
+    styleObj[lv_name] = valueObj;
+    var state = flattenStates(states);
     try {
-        classObj[lv_name][state] = get_lv_c_value(propertyName, realValue, className, state);
+        styleObj[lv_name][state] = get_lv_c_value(propertyName, realValue, type, name, state, lang);
     } catch(e) {
         console.error(`Error while parsing property '${propertyName}': ` + e);
         throw new Error();
@@ -426,28 +453,48 @@ function processProperty(propertyName, realValue, classObj, className, state) {
 }
 /**
  * Converts a style sheet to a set of LittlevGL style rules.
- * @param {CSSOM.CSSStyleSheet} csso stylesheet to convert
+ * @param {String} css_string CSS stylesheet to convert
  */
-function convert(csso) {
-    console.log(csso);
+function convert(css_string, lang) {
+    const csso = cssom.parse(css_string);
     for(const rule of csso.cssRules) {
         if(rule instanceof cssom.CSSStyleRule) {
             var parsedObj = cssSelectorParser.parse(rule.selectorText);
             if(typeof parsedObj.selectors == 'undefined')
                 parsedObj = { selectors: [ parsedObj ]};
             for(const selector of parsedObj.selectors) {
-                console.log(selector.rule);
-                const className = selector.rule.classNames[0];
-                let state = "normal";
+                let name = null;
+                let hasTagName = typeof selector.rule.tagName != 'undefined';
+                let hasClassName = typeof selector.rule.classNames != 'undefined';
+                if(hasTagName && hasClassName)
+                    throw new Error("Selectors must only have a tag or class name, not both.");
+                else if(hasTagName)
+                    name = selector.rule.tagName;
+                else if(hasClassName)
+                    name = selector.rule.classNames[0];
+                else
+                    throw new Error("Unexpected selector type");
+                let part = "main";
+                let states = [ "default" ];
                 if(selector.rule.pseudos) {
-                    state = selector.rule.pseudos[0].name;
-                    validateState(state);
+                    for(var i = 0; i < selector.rule.pseudos.length; i++) {
+                        var state = selector.rule.pseudos[i].name;
+                        if(state.trim().length == 0)
+                            continue;
+                        if(validateState(state)) {
+                            states.push(state);
+                        } else if(part == "main")
+                            part = state;
+                        else
+                            throw new Error("Unexpected state/part: " + state);
+                    }
+                    
                 }
-                
-                const classObj = classes[className] || {};
-                classes[className] = classObj;
+                if(part != "main" && !hasTagName)
+                    throw new Error("Parts can only be specified when using a tag selector (i.e. btn) not a class selector");
+     
                 for(var i = 0; i < rule.style.length; i++) {
-                    processProperty(rule.style[i], rule.style[rule.style[i]], classObj, className, state);
+                    processProperty(rule.style[i], rule.style[rule.style[i]], hasClassName ? "class" : "tag", name, states, part, lang);
                 }
             }
             
@@ -455,30 +502,127 @@ function convert(csso) {
     }
 }
 
-/**
- * Write a C file containing the styles.
- * 
- */
-function finalize() {
-    var file = "";
-    file += "/*\n * Autogenerated file; do not edit.\n */\n\n";
-    file += "#include <lvgl/lvgl.h>\n\n";
-    Object.keys(classes).forEach(cls => {
-        file += `lv_style_t lv_style_${cls};\n`;
-    });
+function langComment(lang, comment) {
+    if(lang == "c")
+        return `/* ${comment} */\n`;
+    else if(lang == "micropython")
+        return `# ${comment}\n`;
+    else
+        throw new Error("Unknown language");
+}
 
-    file += "\nvoid lv_style_css_init(void) {\n";
-    for(var cls in classes) {
-        file += `    lv_style_init(&lv_style_${cls});\n`;
-        Object.keys(classes[cls]).forEach((key) => {
-            const valueObj = classes[cls][key];
+function styleGen(lang, lineEnding, obj) {
+    var file = "";
+    for(var cls in obj) {
+        var clsTerm = cls;
+        if(obj == classes)
+            file += "\n" + langComment(lang, `.${cls}`);
+        else {
+            file += "\n" + langComment(lang, cls);
+            clsTerm = "css_wid_" + cls;
+        }
+        if(lang == "c")
+            file += `    lv_style_init(&lv_style_${clsTerm});\n`;
+        else if(lang == "micropython")
+            file += `style_${clsTerm} = lv.style_t()\n`;
+        Object.keys(obj[cls]).forEach((key) => {
+            const valueObj = obj[cls][key];
             Object.keys(valueObj).forEach(state => {
-                file += `    lv_style_set_${key.toLowerCase()}(&lv_style_${cls}, LV_STATE_${state.toUpperCase()}, ${valueObj[state]});\n`;
+                if(lang == "micropython")
+                    file += `style_${clsTerm}.set_${key.toLowerCase()}(${micropythonState(state)}, ${valueObj[state]})${lineEnding}\n`;
+                else if(lang == "c")
+                    file += `    lv_style_set_${key.toLowerCase()}(&lv_style_${clsTerm}, ${state.toUpperCase()}, ${valueObj[state]})${lineEnding}\n`;
             });
             
         });
     }
-    file += "}\n";
+    return file;
+}
+
+/**
+ * Write a code file containing the styles.
+ * 
+ */
+function finalize(lang) {
+    var file = "";
+    var lineEnding = "";
+    if(lang == "c")
+        lineEnding = ";";
+    
+    file += langComment(lang, "Autogenerated file; do not edit.");
+    if(lang == "c") {
+        file += "#include <lvgl/lvgl.h>\n\n";
+    } else if(lang == "micropython") {
+        file += "import lvgl as lv\n\n";
+    }
+
+    file += "\n\n";
+    file += "# Initialize a custom theme*/\n";
+    file += `class style_css_theme(lv.theme_t):
+    def __init__(self):
+        super().__init__()
+
+        # This theme is based on active theme
+        base_theme = lv.theme_get_act()
+        self.copy(base_theme)
+
+        # This theme will be applied only after base theme is applied
+        self.set_base(base_theme)
+
+        # Set the "apply" callback of this theme to our custom callback
+        self.set_apply_cb(self.apply)
+
+        # Activate this theme
+        self.set_act()
+    
+    def apply(self, theme, obj, name):
+        style_css_apply_cb(theme, obj, name)\n\ntheme = style_css_theme()\n`;
+    
+    file += styleGen(lang, lineEnding, classes);
+    file += styleGen(lang, lineEnding, objectTypeStyles);
+
+    if(lang == "c")
+        file += "}\n";
+
+    if(lang == "c")
+        file += "\nstatic void lv_style_css_apply_cb(lv_theme_t * th, lv_obj_t * obj, lv_theme_style_t name) {\n";
+    else if(lang == "micropython")
+        file += "\ndef style_css_apply_cb(th, obj, name):\n";
+    if(lang == "c") {
+        file += "    lv_style_list_t * list;\n\n";
+        file += "    switch(name) {\n";
+    }
+
+    var widgetParts = {};
+    var widgetNames = new Set(Object.keys(objectTypeStyles).map(wid => {
+        var words = wid.split("_part_");
+        var widgetName = words[0];
+        var widgetPartObj = widgetParts[widgetName] || [];
+        widgetParts[widgetName] = widgetPartObj;
+        widgetPartObj.push(words[1]);
+        return widgetName;
+    }));
+    widgetNames.forEach(wid => {
+        if(lang == "c")
+            file += `        case LV_THEME_${wid.toUpperCase()}:\n`;
+        else if(lang == "micropython")
+            file += `    if name == lv.THEME.${wid.toUpperCase()}:\n`;
+        widgetParts[wid].forEach(part => {
+            if(lang == "c") {
+                file += `            list = lv_obj_get_style_list(obj, LV_${wid.toUpperCase()}_PART_${part.toUpperCase()});\n`;
+                file += `            _lv_style_list_add_style(list, &lv_style_css_wid_${wid}_part_${part});\n`;
+                file += `            break;\n`;
+            } else if(lang == "micropython")
+                file += `       obj.add_style(lv.${wid}.PART.${part.toUpperCase()}, style_css_wid_${wid}_part_${part})\n`;
+        });
+    });
+    if(lang == "c") {
+        file += `        default:\n`;
+        file += `            break;\n`;
+        file += "    }\n";
+        file += "}\n";
+    }
+    
     return file;
 }
 module.exports = { convert: convert, finalize: finalize };

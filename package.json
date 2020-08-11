@@ -9,6 +9,7 @@
   "author": "embeddedt",
   "license": "MIT",
   "dependencies": {
+    "chokidar": "^3.4.2",
     "css-selector-parser": "^1.4.1",
     "cssom": "^0.4.4",
     "yargs": "^15.3.1"
